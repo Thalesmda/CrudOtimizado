@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="pt-BR"> <!-- Define o tipo do documento como HTML5 e o idioma como português do Brasil -->
+
+<head>
+  <meta charset="UTF-8"> <!-- Define o conjunto de caracteres como UTF-8 -->
+  <title>Gerenciador de Usuários</title> <!-- Título da aba do navegador -->
+
+  <!-- Importa o CSS do Bootstrap para estilos prontos -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Importa ícones do Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css" rel="stylesheet">
+</head>
+
+<body class="bg-light"> <!-- Aplica fundo claro na página -->
+
+  <div class="container py-5"> <!-- Container central com padding vertical -->
+
+    <!-- Título principal da aplicação com ícone -->
+    <h1 class="text-center mb-4"><i class="bi bi-people-fill me-2"></i>Gerenciador de Usuários</h1>
+
+    <!-- Botão centralizado para carregar os usuários -->
+    <div class="d-flex justify-content-center mb-4">
+      <button onclick="carregarUsuarios()" class="btn btn-primary">
+        <i class="bi bi-arrow-clockwise me-1"></i> Carregar Usuários
+      </button>
+    </div>
+
+    <!-- Card com a lista de usuários -->
+    <div class="card shadow mb-5">
+      <div class="card-header bg-primary text-white">
+        <i class="bi bi-list-ul me-2"></i>Lista de Usuários
+      </div>
+      <ul id="lista-usuarios" class="list-group list-group-flush">
+        <!-- Aqui a lista de usuários será inserida dinamicamente pelo JS -->
+      </ul>
+    </div>
+
+    <!-- Card com formulário para criar ou editar usuários -->
+    <div class="card shadow">
+      <div class="card-header bg-success text-white">
+        <i class="bi bi-person-plus-fill me-2"></i>Criar ou Editar Usuário
+      </div>
+      <div class="card-body">
+
+        <!-- Área de alerta (mensagens de erro ou sucesso) -->
+        <div id="alerta" class="alert d-none" role="alert"></div>
+
+        <!-- Campo para digitar o nome -->
+        <div class="mb-3">
+          <label for="nome" class="form-label">Nome</label>
+          <input type="text" id="nome" class="form-control" placeholder="Digite o nome">
+        </div>
+
+        <!-- Campo para digitar o e-mail -->
+        <div class="mb-3">
+          <label for="email" class="form-label">E-mail</label>
+          <input type="email" id="email" class="form-control" placeholder="Digite o e-mail">
+        </div>
+
+        <!-- Botão para criar usuário -->
+        <button onclick="criarUsuario()" class="btn btn-success">
+          <i class="bi bi-plus-circle me-1"></i> Criar Usuário
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Início do código JavaScript -->
+  <script>
+    const baseUrl = "http://localhost:8080/usuarios"; // URL base da API
+    let idEdicao = null; // Armazena o ID do usuário em edição
+
+    // Função para carregar todos os usuários da API
+    async function carregarUsuarios() {
+      const resposta = await fetch(baseUrl); // Faz uma requisição GET para a API
+      const usuarios = await resposta.json(); // Converte a resposta em JSON
+
+      const lista = document.getElementById("lista-usuarios"); // Seleciona o elemento da lista
+      lista.innerHTML = ""; // Limpa o conteúdo anterior da lista
+
+      // Para cada usuário recebido da API
+      usuarios.forEach(usuario => {
+        const li = document.createElement("li"); // Cria um item de lista
+        li.classList.add("list-group-item", "d-flex", "justify-content-between", "align-items-center");
+
+        // Define o conteúdo HTML da linha com dados do usuário e botões de ação
+        li.innerHTML = `
+          <div>
+            <strong>ID:</strong> ${usuario.id} |
+            <strong>Nome:</strong> ${usuario.nome} |
+            <strong>Email:</strong> ${usuario.email}
+          </div>
+          <div>
+            <button class="btn btn-sm btn-warning me-2" onclick="editarUsuario('${usuario.id}', '${usuario.nome}', '${usuario.email}')">
+              <i class="bi bi-pencil-square"></i>
+            </button>
+            <button class="btn btn-sm btn-danger" onclick="excluirUsuario('${usuario.id}')">
+              <i class="bi bi-trash"></i>
+            </button>
+          </div>
+        `;
+
+        lista.appendChild(li); // Adiciona o item à lista no HTML
+      });
+    }
+
+    // Função para criar um novo usuário
+    async function criarUsuario() {
+      const nome = document.getElementById("nome").value.trim(); // Pega o valor do campo nome
+      const email = document.getElementById("email").value.trim(); // Pega o valor do campo email
+      const alerta = document.getElementById("alerta");
+
+      if (!nome || !email) {
+        mostrarAlerta("Preencha todos os campos!", "danger"); // Validação de campos vazios
+        return;
+      }
+
+      try {
+        const resposta = await fetch(baseUrl, {
+          method: "POST", // Método HTTP POST
+          headers: { "Content-Type": "application/json" }, // Cabeçalho JSON
+          body: JSON.stringify({ nome, email }) // Envia os dados como JSON
+        });
+
+        const texto = await resposta.text(); // Pega o texto de resposta da API
+        mostrarAlerta(texto, "success"); // Exibe alerta de sucesso
+        carregarUsuarios(); // Recarrega a lista de usuários
+        document.getElementById("nome").value = "";
+        document.getElementById("email").value = "";
+      } catch (erro) {
+        mostrarAlerta("Erro ao criar usuário!", "danger"); // Em caso de erro
+      }
+    }
+
+    // Função para preencher o formulário com os dados de um usuário a ser editado
+    function editarUsuario(id, nome, email) {
+      document.getElementById("nome").value = nome;
+      document.getElementById("email").value = email;
+      idEdicao = id; // Salva o ID do usuário em edição
+
+      const botaoCriar = document.querySelector("button[onclick='criarUsuario()']");
+      botaoCriar.classList.add("d-none"); // Esconde o botão de criar
+
+      let botaoAtualizar = document.getElementById("btn-atualizar");
+      if (!botaoAtualizar) {
+        // Se ainda não existir, cria o botão de atualizar
+        botaoAtualizar = document.createElement("button");
+        botaoAtualizar.id = "btn-atualizar";
+        botaoAtualizar.className = "btn btn-warning ms-2";
+        botaoAtualizar.innerHTML = '<i class="bi bi-check-circle me-1"></i> Atualizar Usuário';
+        botaoAtualizar.onclick = atualizarUsuario;
+        botaoCriar.parentNode.appendChild(botaoAtualizar); // Adiciona o botão ao formulário
+      }
+
+      let botaoVoltar = document.getElementById("btn-voltar");
+      if (!botaoVoltar) {
+        botaoVoltar = document.createElement("button");
+        botaoVoltar.id = "btn-voltar";
+        botaoVoltar.className = "btn btn-secondary ms-2";
+        botaoVoltar.innerHTML = '<i class="bi bi-arrow-left me-1"></i> Voltar';
+        botaoVoltar.onclick = cancelarEdicao;
+        botaoCriar.parentNode.appendChild(botaoVoltar);
+      }
+    }
+
+    // Função para atualizar os dados de um usuário (PUT)
+    async function atualizarUsuario() {
+      const nome = document.getElementById("nome").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const alerta = document.getElementById("alerta");
+
+      if (!nome || !email || !idEdicao) {
+        mostrarAlerta("Preencha todos os campos!", "danger");
+        return;
+      }
+
+      try {
+        const resposta = await fetch(`${baseUrl}/${idEdicao}`, {
+          method: "PUT", // Método HTTP PUT
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nome, email })
+        });
+
+        const texto = await resposta.text();
+        mostrarAlerta(texto, "success");
+
+        // Limpa os campos e restaura o estado original
+        cancelarEdicao();
+        carregarUsuarios(); // Atualiza a lista
+      } catch (erro) {
+        mostrarAlerta("Erro ao atualizar usuário!", "danger");
+      }
+    }
+
+    // Função para excluir um usuário (DELETE)
+    async function excluirUsuario(id) {
+      if (!confirm("Tem certeza que deseja excluir este usuário?")) return;
+
+      try {
+        const resposta = await fetch(`${baseUrl}/${id}`, {
+          method: "DELETE" // Método HTTP DELETE
+        });
+
+        const texto = await resposta.text();
+        mostrarAlerta(texto, "success");
+        carregarUsuarios(); // Atualiza a lista
+        // Se o usuário excluído estava em edição, cancela edição
+        if (idEdicao === id) {
+          cancelarEdicao();
+        }
+      } catch (erro) {
+        mostrarAlerta("Erro ao excluir usuário!", "danger");
+      }
+    }
+
+    // Função para cancelar a edição e restaurar o formulário
+    function cancelarEdicao() {
+      document.getElementById("nome").value = "";
+      document.getElementById("email").value = "";
+      idEdicao = null;
+      const botaoCriar = document.querySelector("button[onclick='criarUsuario()']");
+      if (botaoCriar) botaoCriar.classList.remove("d-none");
+      const botaoAtualizar = document.getElementById("btn-atualizar");
+      if (botaoAtualizar) botaoAtualizar.remove();
+      const botaoVoltar = document.getElementById("btn-voltar");
+      if (botaoVoltar) botaoVoltar.remove();
+    }
+
+    // Função para exibir mensagens de alerta
+    function mostrarAlerta(mensagem, tipo) {
+      const alerta = document.getElementById("alerta");
+      alerta.className = `alert alert-${tipo}`; // Define classe de cor do Bootstrap
+      alerta.textContent = mensagem;
+      alerta.classList.remove("d-none"); // Exibe o alerta
+
+      setTimeout(() => {
+        alerta.classList.add("d-none"); // Esconde após 3 segundos
+      }, 3000);
+    }
+  </script>
+
+  <!-- Importa o JavaScript do Bootstrap (para ícones, modal, etc.) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
