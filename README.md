@@ -21,7 +21,7 @@ CREATE TABLE usuario (
     email VARCHAR(100) NOT NULL    
 );
 
-  # Configcurar application.properties
+  # Configurar application.properties
 No arquivo src/main/resources/application.properties, adicione:
 
   # Conexão com o MySQL
